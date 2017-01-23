@@ -1,0 +1,117 @@
+## The Final Poject for Practical Machine Learning Course
+## Title: "To predict the manner in the exercise" 
+
+
+by Yuan Ren
+---
+
+## Goal---
+
+The goal of your project is to predict the manner in which persons did the exercise. This is the "classe" variable in the training set. We may use any of the other variables to predict with. 
+
+## Introduction and Summary---
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement, a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Data---
+
+The training data for this project are available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+The test data are available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. 
+
+## Loading R packages---
+
+```{r loading_data}
+library(caret)
+library(rattle)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(repmis)
+```
+
+
+## Data Loading and processing ---
+
+The data was already downloaded into my local dictory
+```{r }
+setwd("C:/Users/21722/Desktop/temp16/Coursera/Practical Machine Learning/Project")
+training <- read.csv('./pml-training.csv', na.strings = c("NA", ""), header=T)
+testing <- read.csv('./pml-testing.csv', na.strings = c("NA", ""), header=T)
+
+training <- training[, colSums(is.na(training)) == 0]
+testing <- testing[, colSums(is.na(testing)) == 0]
+```
+
+The training data will be split into two data sets -- training data set (60%) and a validation data set (40%). The validation data set will be used to conduct cross validation.
+```{r }
+set.seed(12500) 
+InTraining <- createDataPartition(training$classe, p = 0.6, list = FALSE)
+Training_F <- training[InTraining, ]
+dim(Training_F)
+Validation_F <- training[-InTraining, ]
+dim(Validation_F)
+```
+
+Remove the data with almost all NA values and only keep the data items used in modeling 
+```{r }
+Training_F <- Training_F[, -c(1:7)]
+Validation_F <- Validation_F[c(8:60)]
+```
+
+## Model building
+We will use three algorithms in the modeling, Decision Trees with CART, Stochatics Gradient Boosting, and Radom Forest Desision Trees. 
+
+#1 Decision Trees with CART
+```{r }
+FitControl <- trainControl(method = "cv", number = 5)
+Model_rpart <- train(classe ~ ., data = Training_F, method = "rpart", 
+                   trControl = FitControl)
+print(Model_rpart, digits = 5)
+
+fancyRpartPlot(Model_rpart$finalModel)
+```
+
+To predict outcomes using validation set and Use confusion Matrix to test results
+
+```{r }
+predict_rpart <- predict(Model_rpart, Validation_F)
+(confusion_rpart <- confusionMatrix(Validation_F$classe, predict_rpart))
+(accuracy_rpart <- confusion_rpart$overall[1])
+```
+The value of accuracy indicates the model doesn't work well. 
+
+#2 Stochatics Gradient Boosting
+
+```{r }
+Model_GBM <- train(classe ~ ., data = Training_F, method = "gbm", 
+                   trControl = FitControl)
+print(Model_GBM, digits = 5)
+```
+
+predict outcomes using validation set and Use confusion Matrix to test results
+
+```{r }
+predict_GBM <- predict(Model_GBM, Validation_F)
+(confusion_GMB <- confusionMatrix(Validation_F$classe, predict_GBM))
+```
+#3 Radom Forest Desision Trees
+
+```{r }
+Model_RF <- train(classe ~ ., data = Training_F, method = "rf", 
+                   trControl = FitControl)
+print(Model_RF, digits = 5)
+
+predict_RF <- predict(Model_RF, Validation_F)
+(confusion_RF <- confusionMatrix(Validation_F$classe, predict_RF))
+```
+
+## Conclusion---
+The analysis show both Stochatics Gradient Boosting and Radom Forest work well and RF gave the besting modeling. So we will use RF for prediction in testing data. However, RF demands much higher computation. 
+
+
+# Predicting in testing data---
+```{r }
+prediction_testing <-(predict(Model_RF, testing))
+prediction_testing
+```
